@@ -3,12 +3,10 @@ Flappy-Bird like game in assembly 8086x using the Turbo Assembler
 
 ![Picture2](https://github.com/sclozes/FlappySquare/assets/59666888/5e930db2-e8e0-4951-8808-88036343f3ef)
 
-The game runs on DOSBox, to run the game Enter the following commands:
+The game runs on DOSBox, to run the game enter the following:
+
 ```
-cycles=max
-tasm base
-tlink base
-base
+rungame
 ```
 
 NOTE: cycles=max is used due to flickering on normal CPU speed. the game still flickers after the use of this command (DOSBox limitations), but it's way less noticeable.
