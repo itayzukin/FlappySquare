@@ -1,3 +1,4 @@
+cycles=max
 tasm base
 tlink base
-td base
+base
