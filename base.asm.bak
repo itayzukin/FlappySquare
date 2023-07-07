@@ -1,0 +1,531 @@
+IDEAL
+MODEL small
+STACK 100h
+DATASEG
+; --------------------------
+
+	; PLAYER 
+	PLAYER_COLOUR db 4h
+	PLAYER_X dw 15d
+	PLAYER_X_END dw 35d
+	PLAYER_Y dw 50d
+	PLAYER_Y_END dw 70d
+
+	;PIPES
+	PIPES_COLOUR db 2h
+	PIPES_HOLE_SIZE dw 75d
+	
+	PIPE1_X dw 100d
+	PIPE1_X_END dw 125d 
+	PIPE1_HOLE_Y dw 60d
+	
+	PIPE2_X dw 180d
+	PIPE2_X_END dw 205d 
+	PIPE2_HOLE_Y dw 20d
+	
+	PIPE3_X dw 260d
+	PIPE3_X_END dw 285d
+	PIPE3_HOLE_Y dw 80d
+
+	PIPE4_X dw 300d
+	PIPE4_X_END dw 325d
+	PIPE4_HOLE_Y dw 120d
+	PIPE4_COLOUR db 3h
+
+
+	JumpLoopVar dw ?
+
+	CollisionX dw ?
+	CollisionY dw ?
+	
+	CollisionLoop dw ?
+	
+	; Screens 
+	TopBottom db '+=====================================+',10,13,'$'
+	Space db '|                                     |',10,13,'$'
+	
+	Line1 db '|             Welcome To              |',10,13,'$'
+	Line2 db '|             FlappySquare!           |',10,13,'$'
+	Line3 db '|         Press SPACE to play!        |',10,13,'$'
+	Line4 db '|   Do not touch the bottom, the top  |',10,13,'$'
+	Line5 db '|         or the green pipes!         |',10,13,'$'
+	Line6 db '|    To exit on any time press ESC    |',10,13,'$'
+	
+	Lost1 db '|    You have lost, Press SPACE to    |',10,13,'$'
+	Lost2 db '|    try again or ESC to exit.        |',10,13,'$'
+	
+; --------------------------
+CODESEG
+; -------------Procedures-------------
+
+; set all vriable to their default values; used when starting a new game after a lost
+proc DefaultSetting
+	
+	mov [PLAYER_COLOUR], 4h
+	mov [PLAYER_X], 15d
+	mov [PLAYER_X_END], 35d
+	mov [PLAYER_Y], 50d
+	mov [PLAYER_Y_END], 70d
+	
+	mov [PIPES_COLOUR], 2h 
+	mov [PIPES_HOLE_SIZE], 75d
+	
+	mov [PIPE1_X], 100d
+	mov [PIPE1_X_END], 125d
+	mov [PIPE1_HOLE_Y], 60d
+
+	mov [PIPE2_X], 180d
+	mov [PIPE2_X_END], 205d
+	mov [PIPE2_HOLE_Y], 20d
+	
+	mov [PIPE3_X], 260d
+	mov [PIPE3_X_END], 285d
+	mov [PIPE3_HOLE_Y], 80d
+	
+	mov [PIPE4_X], 300d
+	mov [PIPE4_X_END], 320d
+	mov [PIPE4_HOLE_Y], 50d
+	mov [PIPE4_COLOUR], 3h
+	
+ret
+endp DefaultSetting	
+	
+; prints start screen
+proc PrintStartScreen
+
+		mov dx, offset TopBottom
+		call Print
+		mov dx, offset Space
+		call Print
+		mov dx, offset Line1
+		call Print
+		mov dx, offset Line2
+		call Print
+		mov dx, offset Space
+		call Print
+		mov dx, offset Line3
+		call Print
+		mov dx, offset Line4
+		call Print
+		mov dx, offset Line5
+		call Print
+		mov dx, offset Space
+		call Print
+		mov dx, offset Line6
+		call Print
+		mov dx, offset Space
+		call Print
+		mov dx, offset TopBottom
+		call Print
+ret
+endp PrintStartScreen
+
+; prints lost screen
+proc LostScreen
+
+	mov dx, offset TopBottom
+	call Print
+	mov dx, offset Space
+	call Print
+	mov dx, offset Lost1
+	call Print
+	mov dx, offset Lost2
+	call Print
+	mov dx, offset Space
+	call Print
+	mov dx, offset TopBottom
+	call Print
+	
+ret
+endp LostScreen
+
+; print procedure
+proc Print
+	
+	mov ah, 9h
+	int 21h
+ret
+endp Print	
+
+;Draw Player
+proc DrawPlayer
+	
+	; Draw Settings
+	mov al, [PLAYER_COLOUR]
+	mov bl, 0h
+	mov cx, [PLAYER_X]
+	mov dx, [PLAYER_Y]
+	mov ah, 0ch
+	
+	; Draw Loops
+P_DrawY:
+P_DrawX:
+	int 10h
+	inc cx
+	cmp cx, [PLAYER_X_END]
+	jl P_DrawX
+	mov cx, [PLAYER_X]
+	inc dx
+	cmp dx, [PLAYER_Y_END]
+	jl P_DrawY
+
+ret
+endp DrawPlayer	
+
+;Delay Procedure
+proc delay   
+
+	mov cx, 1h     ;HIGH WORD.
+	mov dx, 1h 	   ;LOW WORD.
+	mov ah, 86h    ;WAIT.
+	int 15h
+ret
+endp delay 
+
+;Jump Procedure  
+proc Jump
+	mov [JumpLoopVar], 6
+	jumpLoop:
+	
+		; draw & erase objects
+		call DrawAll
+		call CheckPlayerPipeCollision
+		call Delay
+		call EraseAll
+		
+		; keep pipes running
+		call PipeProgression
+		
+		; increase hight , lower y 
+		sub [PLAYER_Y_END], 4
+		sub [PLAYER_Y], 4
+		dec [JumpLoopVar]
+	cmp [JumpLoopVar], 0 
+	jne jumpLoop
+ret 
+endp Jump
+
+;Pipe1
+proc DrawPipe1
+
+	; Draw Settings
+	mov al, [PIPES_COLOUR]
+	mov bl, 0h
+	mov cx, [PIPE1_X]
+	mov dx, 0 ; Y
+	mov ah, 0ch
+	
+	; Draw Loops
+H1_DrawY:
+H1_DrawX:
+	int 10h
+	inc cx
+	cmp cx, [PIPE1_X_END]
+	jl H1_DrawX
+	mov cx, [PIPE1_X]
+	inc dx
+	cmp dx , [PIPE1_HOLE_Y] ; Check if hole y
+	jne Continue1 
+	add dx, [PIPES_HOLE_SIZE] ; "make" the hole
+	Continue1:
+	cmp dx, 200 ; Y END
+	jl H1_DrawY
+
+ret
+endp DrawPipe1
+
+;Pipe2
+proc DrawPipe2
+
+	; Draw Settings
+	mov al, [PIPES_COLOUR]
+	mov bl, 0h
+	mov cx, [PIPE2_X]
+	mov dx, 0 ; Y
+	mov ah, 0ch
+	
+	; Draw Loops
+H2_DrawY:
+H2_DrawX:
+	int 10h
+	inc cx
+	cmp cx, [PIPE2_X_END]
+	jl H2_DrawX
+	mov cx, [PIPE2_X]
+	inc dx
+	cmp dx , [PIPE2_HOLE_Y] ; Check if hole y
+	jne Continue2 
+	add dx, [PIPES_HOLE_SIZE] ; "make" the hole
+	Continue2:
+	cmp dx, 200 ; Y END
+	jl H2_DrawY
+
+ret
+endp DrawPipe2
+
+; Pipe3
+proc DrawPipe3
+
+	; Draw Settings
+	mov al, [PIPES_COLOUR]
+	mov bl, 0h
+	mov cx, [PIPE3_X]
+	mov dx, 0 ; Y
+	mov ah, 0ch
+	
+	; Draw Loops
+H3_DrawY:
+H3_DrawX:
+	int 10h
+	inc cx
+	cmp cx, [PIPE3_X_END]
+	jl H3_DrawX
+	mov cx, [PIPE3_X]
+	inc dx
+	cmp dx , [PIPE3_HOLE_Y] ; Check if hole y
+	jne Continue3 
+	add dx, [PIPES_HOLE_SIZE] ; "make" the hole
+	Continue3:
+	cmp dx, 200 ; Y END
+	jl H3_DrawY
+
+ret
+endp DrawPipe3
+
+proc DrawPipe4
+
+	; Draw Settings
+	mov al, [PIPE4_COLOUR]
+	mov bl, 0h
+	mov cx, [PIPE4_X]
+	mov dx, 0 ; Y
+	mov ah, 0ch
+	
+	; Draw Loops
+H4_DrawY:
+H4_DrawX:
+	int 10h
+	inc cx
+	cmp cx, [PIPE4_X_END]
+	jl H4_DrawX
+	mov cx, [PIPE4_X]
+	inc dx
+	cmp dx , [PIPE4_HOLE_Y] ; Check if hole y
+	jne Continue4 
+	add dx, [PIPES_HOLE_SIZE] ; "make" the hole
+	Continue4:
+	cmp dx, 200 ; Y END
+	jl H4_DrawY
+
+ret
+endp DrawPipe4
+
+
+; drawing objects 
+proc DrawAll
+	
+	mov [PLAYER_COLOUR], 4h
+	call DrawPlayer
+	
+	mov [PIPES_COLOUR], 2
+	mov [PIPE4_COLOUR], 3
+	call DrawPipe1	
+	call DrawPipe2
+	call DrawPipe3
+	call DrawPipe4
+
+ret 
+endp DrawAll
+
+; erasing objects
+proc EraseAll
+	mov [PLAYER_COLOUR], 0d
+	call DrawPlayer
+	mov [PIPES_COLOUR], 0
+	mov [PIPE4_COLOUR], 0
+	call DrawPipe1
+	call DrawPipe2
+	call DrawPipe3
+	call DrawPipe4
+
+ret
+endp EraseAll
+
+; keeps the player running
+proc PlayerProgression
+	
+	; "lower" the y of player
+	add [PLAYER_Y_END], 2
+	add [PLAYER_Y], 2
+	
+ret
+endp PlayerProgression
+	
+; keeps the pipes running
+proc PipeProgression
+
+	; PIPE progression
+	dec [PIPE1_X_END]
+	dec [PIPE1_X]
+
+	dec [PIPE2_X_END]
+	dec [PIPE2_X]
+	
+	dec [PIPE3_X_END]
+	dec [PIPE3_X]
+	
+	dec [PIPE4_X_END]
+	dec [PIPE4_X]
+	
+ret
+endp PipeProgression
+
+proc CheckPlayerPipeCollision
+
+	mov [CollisionLoop], 3
+
+	mov ax, [PLAYER_X]
+	mov [CollisionX], ax
+
+	mov ax, [PLAYER_Y]
+	mov [CollisionY], ax
+	
+	Collision:	
+
+		mov cx, [CollisionX]
+		mov dx, [CollisionY]
+		
+		; Read dot 
+		mov   bh,0h 
+		mov   ah,0Dh 
+		int   10h ; return al the pixel value read
+	
+		cmp al, 2d
+		jne notLost
+		call LostP
+		notLost:
+		
+		cmp [CollisionLoop], 3
+		jne next1
+		dec [CollisionLoop]
+		
+		mov si , [PLAYER_X_END]
+		mov [CollisionX], si
+		jmp Collision
+		
+		next1:
+	
+		cmp [CollisionLoop], 2
+		jne next2
+		dec [CollisionLoop]
+		
+		mov si , [PLAYER_Y_END]
+		mov [CollisionY], si
+		jmp Collision
+		
+		next2:
+		
+		cmp [CollisionLoop], 1
+		jne next3
+		dec [CollisionLoop]
+		
+		mov si , [PLAYER_X]
+		mov [CollisionX], si
+		mov si , [PLAYER_Y_END]
+		mov [CollisionY], si
+		jmp Collision
+		
+		next3:
+		
+		cmp [CollisionLoop], 0
+		jne Collision
+	
+ret
+endp CheckPlayerPipeCollision
+
+proc LostP
+	jmp Lost
+ret
+endp LostP
+
+; ------------------------------------
+start:
+	mov ax, @data
+	mov ds, ax
+	
+; ------------Code Start--------------
+
+	call PrintStartScreen
+	; Check for keyboard input
+	WaitForInput:
+		in al, 64h ; Read keyboard status port
+		cmp al, 10b ; Data in buffer?
+		je WaitForInput ; if not goto start of loop
+		in al, 60h ; get keyboard data
+		cmp al, 1h ; is esc ?
+		je EndGame ; esc pressed - endgame
+		cmp al,39h ; is space bar? yes -start game 
+		jne WaitForInput
+	
+	call DefaultSetting ; incase of changed variables - return to default values 
+	
+	; Enter Graphics Mode
+	mov ax , 13h
+	int 10h
+
+; Main GameLoop
+GameLoop:
+	
+	; Draw & Erase objects after delay
+	; Check colission before erase - check by colour
+	call DrawAll
+	call CheckPlayerPipeCollision
+	call delay
+	call EraseAll
+	
+	; progressing game objects
+	call PlayerProgression
+	call PipeProgression
+	
+	; Check if player had reached the bottom - if true - goto lost screen
+	cmp [PLAYER_Y_END], 200d
+	jnl Lost
+	
+	; Check if player had reached the top - if true - goto lost screen
+	cmp [PLAYER_Y], 1b
+	jl Lost
+	
+	; Check for keyboard input
+	in al, 64h ; Read keyboard status port
+	cmp al, 10b ; Data in buffer?
+	je GameLoop ; if not goto start of loop
+	in al, 60h ; get keyboard data
+	cmp al,1h ; is esc ? yes - endgame, no - continue
+	je EndGame ; esc pressed - endgame
+	cmp al,39h ; is space bar? yes - jump, no continue loop
+	jne GameLoop
+	Call Jump
+	
+	jmp GameLoop
+	
+	
+; Player lost
+Lost:	
+; Enter Text Mode
+	mov ax, 0h
+	int 10h
+	
+	call LostScreen
+	jmp WaitForInput
+	
+; Game had ended via ESC
+EndGame:
+	
+	; Return to text mode
+	mov ax, 0h
+	int 10h
+	
+exit:
+	mov ax, 4c00h
+	int 21h
+END start
